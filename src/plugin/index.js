@@ -4,7 +4,7 @@ const LAST_FETCH_KEY="weatherplus.lastFetch.v1";
 const LAST_LOCATION_KEY="weatherplus.lastLocation.v1";
 let forceRefreshPending=false;
 const DIAGNOSTIC_KEY="weatherplus.lastDiagnostic.v1";
-const PLUGIN_VERSION="0.4.6";
+const PLUGIN_VERSION="0.4.7";
 function diagnostic(stage,message,details){const d={at:new Date().toISOString(),stage:stage,message:String(message||""),details:{version:PLUGIN_VERSION,...(details||{})}};try{localStorage.setItem(DIAGNOSTIC_KEY,JSON.stringify(d))}catch(e){}console.log("Weather+ diagnostic "+JSON.stringify(d));}
 function lastDiagnostic(){try{return JSON.parse(localStorage.getItem(DIAGNOSTIC_KEY)||"null")}catch(e){return null}}
 const SETTINGS_KEY="weatherplus.settings.v1";
