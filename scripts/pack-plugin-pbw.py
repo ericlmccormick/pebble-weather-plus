@@ -68,6 +68,9 @@ def files_named_by(appinfo):
     config = appinfo.get("configPage")
     if isinstance(config, str) and not config.startswith(("http://", "https://")):
         names.append(config)
+    for resource in appinfo.get("resources", {}).get("media", []):
+        if resource.get("file"):
+            names.append(resource["file"])
     return names
 
 
