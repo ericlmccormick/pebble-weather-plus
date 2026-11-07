@@ -3,7 +3,7 @@
 <style>:root{color-scheme:light dark}body{font:16px system-ui,-apple-system,sans-serif;margin:0;padding:20px;max-width:540px}h1{font-size:24px;margin:0 0 8px}p{line-height:1.5;color:gray}label{display:block;font-weight:600;margin:18px 0 6px}select,input{box-sizing:border-box;width:100%;padding:12px;border-radius:8px;border:1px solid #888;background:transparent;color:inherit;font-size:16px}button{background:#1681c4;color:white;border:0;border-radius:8px;padding:13px 22px;font-weight:600;font-size:16px;margin-top:24px;width:100%}#status{margin-top:16px;font-size:14px}small{color:gray}</style></head><body>
 <h1>Weather+</h1><p>Select the weather provider and units sent to apps and watchfaces. Settings apply to all weather locations.</p>
 <label for="locationSource">Location source</label><select id="locationSource"><option value="gps">GPS — current phone location</option><option value="fixed">Specific location — fixed coordinates</option></select>
-<div id="fixedWrap" hidden><label for="locationName">Location name</label><input id="locationName" placeholder="Home" autocomplete="off"><label for="latitude">Latitude</label><input id="latitude" type="number" min="-90" max="90" step="any" placeholder="39.2"><label for="longitude">Longitude</label><input id="longitude" type="number" min="-180" max="180" step="any" placeholder="-76.9"><small>Use decimal degrees; west and south are negative.</small></div>
+<div id="fixedWrap" hidden><label for="locationQuery">ZIP code or city</label><input id="locationQuery" type="text" placeholder="21044 or Columbia, Maryland" autocomplete="address-level2"><small>US ZIP codes or city names, using the same lookup as Timeline WX.</small></div>
 <label for="refreshSlider">Update interval: <span id="refreshLabel">30 minutes</span></label>
 <input id="refreshSlider" type="range" min="0" max="5" step="1" value="1" style="accent-color:#1681c4">
 <small>15 min · 30 min · 1 hr · 3 hr · 6 hr · 1 day</small>
@@ -17,7 +17,7 @@
 <button id="save" type="button">Save settings</button><div id="status" role="status">Connecting to plugin…</div>
 <script>
 (function(){
-var ids=["locationSource","locationName","latitude","longitude","refreshMinutes","provider","temperature","wind","precipitation","pressure","visibility","apiKey"];
+var ids=["locationSource","locationQuery","refreshMinutes","provider","temperature","wind","precipitation","pressure","visibility","apiKey"];
 var status=document.getElementById("status");
 function send(message){return Pebble.sendMessage("plugin",message);}
 var intervals=["15","30","60","180","360","1440"], labels=["15 minutes","30 minutes","1 hour","3 hours","6 hours","1 day"];
