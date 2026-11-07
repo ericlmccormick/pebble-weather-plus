@@ -28,6 +28,8 @@ jobs:
               app = json.loads(z.read("appinfo.json"))
               assert app["projectType"] == "plugin"
               assert "src/plugin/index.js" in z.namelist()
+              assert "src/config.html" in z.namelist()
+              assert app["configPage"] == "src/config.html"
               assert app["plugin"]["script"] == "src/plugin/index.js"
               print("Validated", path)
           PY
