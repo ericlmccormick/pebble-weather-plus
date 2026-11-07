@@ -1,6 +1,6 @@
 {
   "name": "pebble-weather-plus",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "author": "Eric McCormick",
   "pebble": {
     "displayName": "Weather+",
@@ -17,7 +17,9 @@
             "api.met.no",
             "api.openweathermap.org",
             "api.zippopotam.us",
-            "geocoding-api.open-meteo.com"
+            "geocoding-api.open-meteo.com",
+            "air-quality-api.open-meteo.com",
+            "marine-api.open-meteo.com"
           ]
         }
       }
@@ -195,6 +197,90 @@
             ],
             "alert_headline": [
               "shortText"
+            ],
+            "aqi": [
+              "numericValue"
+            ],
+            "hourly_aqi": [
+              "series.numericValue"
+            ],
+            "european_aqi": [
+              "numericValue"
+            ],
+            "hourly_european_aqi": [
+              "series.numericValue"
+            ],
+            "pm25": [
+              "numericValue"
+            ],
+            "hourly_pm25": [
+              "series.numericValue"
+            ],
+            "pm10": [
+              "numericValue"
+            ],
+            "hourly_pm10": [
+              "series.numericValue"
+            ],
+            "ozone": [
+              "numericValue"
+            ],
+            "hourly_ozone": [
+              "series.numericValue"
+            ],
+            "no2": [
+              "numericValue"
+            ],
+            "hourly_no2": [
+              "series.numericValue"
+            ],
+            "co": [
+              "numericValue"
+            ],
+            "hourly_co": [
+              "series.numericValue"
+            ],
+            "dust": [
+              "numericValue"
+            ],
+            "hourly_dust": [
+              "series.numericValue"
+            ],
+            "wave_height": [
+              "numericValue"
+            ],
+            "hourly_wave_height": [
+              "series.numericValue"
+            ],
+            "wave_direction": [
+              "numericValue"
+            ],
+            "hourly_wave_direction": [
+              "series.numericValue"
+            ],
+            "wave_period": [
+              "numericValue"
+            ],
+            "hourly_wave_period": [
+              "series.numericValue"
+            ],
+            "wind_wave_height": [
+              "numericValue"
+            ],
+            "hourly_wind_wave_height": [
+              "series.numericValue"
+            ],
+            "swell_wave_height": [
+              "numericValue"
+            ],
+            "hourly_swell_wave_height": [
+              "series.numericValue"
+            ],
+            "sea_temperature": [
+              "numericValue"
+            ],
+            "hourly_sea_temperature": [
+              "series.numericValue"
             ]
           },
           "supportsMultiple": true,
