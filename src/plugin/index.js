@@ -3,7 +3,7 @@ const H=3600, D=86400, TTL=1800000;
 const SETTINGS_KEY="weatherplus.settings.v1";
 const DEFAULT_SETTINGS={locationSource:"gps",locationQuery:"",refreshMinutes:"30",provider:"auto",temperature:"C",wind:"ms",precipitation:"mm",pressure:"hPa",visibility:"m"};
 const OPTIONS={locationSource:["gps","fixed"],refreshMinutes:["15","30","60","180","360","1440"],provider:["auto","openmeteo","metno","nws","openweather"],temperature:["C","F","K","R"],wind:["ms","kmh","mph","knots"],precipitation:["mm","in"],pressure:["hPa","inHg","mmHg"],visibility:["m","km","mi"]};
-function settings(){let raw={};try{raw=JSON.parse(localStorage.getItem(SETTINGS_KEY)||"{}")||{}}catch(e){}const out={};Object.keys(DEFAULT_SETTINGS).forEach(k=>out[k]=OPTIONS[k].includes(raw[k])?raw[k]:DEFAULT_SETTINGS[k]);for(const k of ["locationQuery"])out[k]=typeof raw[k]==="string"?raw[k]:DEFAULT_SETTINGS[k];out.apiKey=typeof raw.apiKey==="string"?raw.apiKey.trim():"";return out;}
+function settings(){let raw={};try{raw=JSON.parse(localStorage.getItem(SETTINGS_KEY)||"{}")||{}}catch(e){}const out={};Object.keys(DEFAULT_SETTINGS).forEach(k=>{out[k]=OPTIONS[k]?OPTIONS[k].includes(raw[k])?raw[k]:DEFAULT_SETTINGS[k]:typeof raw[k]==="string"?raw[k]:DEFAULT_SETTINGS[k]});out.apiKey=typeof raw.apiKey==="string"?raw.apiKey.trim():"";return out;}
 function converted(v,k,c){if(v==null||!Number.isFinite(Number(v)))return {value:null,unit:""};const n=Number(v);
 if(["temperature","feels_like","dew_point","high","low"].includes(k)){const u=c.temperature;return {value:u==="F"?n*9/5+32:u==="K"?n+273.15:u==="R"?(n+273.15)*9/5:n,unit:{C:"°C",F:"°F",K:"K",R:"°R"}[u]};}
 if(["wind_speed","wind_gust"].includes(k))return {value:n*({ms:1,kmh:3.6,mph:2.2369362921,knots:1.9438444924}[c.wind]),unit:{ms:"m/s",kmh:"km/h",mph:"mph",knots:"knots"}[c.wind]};
@@ -71,6 +71,6 @@ Pebble.registerSourceHandler(async(request,respond)=>{if(request.category!=="wea
 
 Pebble.registerConfigHandler(function(message,respond){
 if(message&&message.type==="get"){respond({settings:settings()});return;}
-if(message&&message.type==="save"){const incoming=message.settings||{};const clean={};Object.keys(DEFAULT_SETTINGS).forEach(k=>{clean[k]=OPTIONS[k].includes(incoming[k])?incoming[k]:DEFAULT_SETTINGS[k]});for(const k of ["latitude","longitude","locationName"])clean[k]=typeof incoming[k]==="string"?incoming[k].trim():DEFAULT_SETTINGS[k];if(clean.locationSource==="fixed"&&!clean.locationQuery){respond({error:"Enter a ZIP code or city."});return;}clean.apiKey=typeof incoming.apiKey==="string"?incoming.apiKey.trim():"";localStorage.setItem(SETTINGS_KEY,JSON.stringify(clean));Pebble.refreshSources(["weather/location"]);respond({ok:true,settings:clean});return;}
+if(message&&message.type==="save"){const incoming=message.settings||{};const clean={};Object.keys(DEFAULT_SETTINGS).forEach(k=>{clean[k]=OPTIONS[k]?OPTIONS[k].includes(incoming[k])?incoming[k]:DEFAULT_SETTINGS[k]:typeof incoming[k]==="string"?incoming[k].trim():DEFAULT_SETTINGS[k]});if(clean.locationSource==="fixed"&&!clean.locationQuery){respond({error:"Enter a ZIP code or city."});return;}clean.apiKey=typeof incoming.apiKey==="string"?incoming.apiKey.trim():"";localStorage.setItem(SETTINGS_KEY,JSON.stringify(clean));Pebble.refreshSources(["weather/location"]);respond({ok:true,settings:clean});return;}
 respond({error:"Unknown settings request"});
 });
