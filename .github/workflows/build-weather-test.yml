@@ -26,6 +26,17 @@ jobs:
       - name: Build test PBW
         working-directory: weather-test
         run: pebble build
+      - name: Bundle settings page into PBW
+        run: |
+          python3 - <<'PY'
+          import zipfile
+          from pathlib import Path
+          pbw=Path('weather-test/build/weather-test.pbw')
+          with zipfile.ZipFile(pbw,'a',zipfile.ZIP_DEFLATED) as archive:
+              archive.write('weather-test/config.html','config.html')
+          with zipfile.ZipFile(pbw) as archive:
+              assert 'config.html' in archive.namelist()
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: weather-source-test-pbw
