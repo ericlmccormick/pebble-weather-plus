@@ -2,11 +2,9 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Weather+ Settings</title>
 <style>:root{color-scheme:light dark}body{font:16px system-ui,-apple-system,sans-serif;margin:0;padding:20px;max-width:540px}h1{font-size:24px;margin:0 0 8px}p{line-height:1.5;color:gray}label{display:block;font-weight:600;margin:18px 0 6px}select,input{box-sizing:border-box;width:100%;padding:12px;border-radius:8px;border:1px solid #888;background:transparent;color:inherit;font-size:16px}button{background:#1681c4;color:white;border:0;border-radius:8px;padding:13px 22px;font-weight:600;font-size:16px;margin-top:24px;width:100%}#status{margin-top:16px;font-size:14px}small{color:gray}</style></head><body>
 <h1>Weather+</h1><p>Select the weather provider and units sent to apps and watchfaces. Settings apply to all weather locations.</p>
-<label for="locationSource">Location source</label><select id="locationSource"><option value="gps">GPS — current phone location</option><option value="fixed">Specific location — fixed coordinates</option></select>
+<label for="locationSource">Location source</label><select id="locationSource"><option value="gps">GPS — current phone location</option><option value="fixed">Specific location — ZIP or city</option></select>
 <div id="fixedWrap" hidden><label for="locationQuery">ZIP code or city</label><input id="locationQuery" type="text" placeholder="21044 or Columbia, Maryland" autocomplete="address-level2"><small>US ZIP codes or city names, using the same lookup as Timeline WX.</small></div>
-<label for="refreshSlider">Update interval: <span id="refreshLabel">30 minutes</span></label>
-<input id="refreshSlider" type="range" min="0" max="5" step="1" value="1" style="accent-color:#1681c4">
-<small>15 min · 30 min · 1 hr · 3 hr · 6 hr · 1 day</small>
+<p>Forecasts are cached for 15 minutes and updated when an app requests weather. No background polling.</p>
 <label for="provider">Weather service</label><select id="provider"><option value="auto">Automatic (Open-Meteo → MET Norway → NWS)</option><option value="openmeteo">Open-Meteo</option><option value="metno">MET Norway</option><option value="nws">US National Weather Service (US only)</option><option value="openweather">OpenWeather One Call 3.0 (API key)</option></select>
 <div id="keyWrap" hidden><label for="apiKey">OpenWeather API key</label><input id="apiKey" type="password" autocomplete="off" placeholder="One Call 3.0 key"><small>Requires an active One Call 3.0 subscription. Stored locally by the plugin.</small></div>
 <label for="temperature">Temperature</label><select id="temperature"><option value="C">Celsius (°C)</option><option value="F">Fahrenheit (°F)</option><option value="K">Kelvin (K)</option><option value="R">Rankine (°R)</option></select>
@@ -14,20 +12,20 @@
 <label for="precipitation">Precipitation and snow depth</label><select id="precipitation"><option value="mm">mm</option><option value="in">inches</option></select>
 <label for="pressure">Atmospheric pressure</label><select id="pressure"><option value="hPa">hPa</option><option value="inHg">inHg</option><option value="mmHg">mmHg</option></select>
 <label for="visibility">Visibility</label><select id="visibility"><option value="m">meters</option><option value="km">kilometers</option><option value="mi">miles</option></select>
-<button id="save" type="button">Save settings</button><div id="status" role="status">Connecting to plugin…</div>
+<button id="save" type="button">Save settings</button><button id="forceRefresh" type="button" style="background:#555;margin-top:10px">Force weather refresh</button><div id="lastFetched">Last weather download: Unknown</div><div id="status" role="status">Connecting to plugin…</div>
 <script>
 (function(){
-var ids=["locationSource","locationQuery","refreshMinutes","provider","temperature","wind","precipitation","pressure","visibility","apiKey"];
+var ids=["locationSource","locationQuery","provider","temperature","wind","precipitation","pressure","visibility","apiKey"];
 var status=document.getElementById("status");
 function send(message){return Pebble.sendMessage("plugin",message);}
-var intervals=["15","30","60","180","360","1440"], labels=["15 minutes","30 minutes","1 hour","3 hours","6 hours","1 day"];
-function updateInterval(){var i=Number(document.getElementById("refreshSlider").value);document.getElementById("refreshLabel").textContent=labels[i];}
+function showLastFetched(ms){document.getElementById("lastFetched").textContent="Last weather download: "+(ms?new Date(ms).toLocaleString():"Never / not available");}
 function showLocation(){document.getElementById("fixedWrap").hidden=document.getElementById("locationSource").value!=="fixed";}
 document.getElementById("locationSource").addEventListener("change",showLocation);
-document.getElementById("refreshSlider").addEventListener("input",updateInterval);
+
 function showKey(){document.getElementById("keyWrap").hidden=document.getElementById("provider").value!=="openweather";}
 document.getElementById("provider").addEventListener("change",showKey);
-Pebble.addEventListener("ready",async function(event){if(event.target!=="plugin")return;try{var response=await send({type:"get"});var cfg=response.settings||{};ids.forEach(function(id){if(id!=="refreshMinutes"&&cfg[id]!==undefined)document.getElementById(id).value=cfg[id]});var idx=intervals.indexOf(String(cfg.refreshMinutes||"30"));document.getElementById("refreshSlider").value=idx<0?1:idx;updateInterval();showLocation();showKey();status.textContent="Settings loaded.";}catch(e){status.textContent="Unable to load settings: "+e;}});
-document.getElementById("save").addEventListener("click",async function(){var cfg={};ids.forEach(function(id){if(id!=="refreshMinutes")cfg[id]=document.getElementById(id).value});cfg.refreshMinutes=intervals[Number(document.getElementById("refreshSlider").value)];if(cfg.provider==="openweather"&&!cfg.apiKey.trim()){status.textContent="Enter your OpenWeather API key.";return;}status.textContent="Saving…";try{var r=await send({type:"save",settings:cfg});status.textContent=r.ok?"Saved. Weather sources are refreshing.":(r.error||"Save failed.");}catch(e){status.textContent="Save failed: "+e;}});
+Pebble.addEventListener("ready",async function(event){if(event.target!=="plugin")return;try{var response=await send({type:"get"});var cfg=response.settings||{};ids.forEach(function(id){if(cfg[id]!==undefined)document.getElementById(id).value=cfg[id]});showLastFetched(response.lastFetchedAt);showLocation();showKey();status.textContent="Settings loaded.";}catch(e){status.textContent="Unable to load settings: "+e;}});
+document.getElementById("save").addEventListener("click",async function(){var cfg={};ids.forEach(function(id){cfg[id]=document.getElementById(id).value});if(cfg.provider==="openweather"&&!cfg.apiKey.trim()){status.textContent="Enter your OpenWeather API key.";return;}status.textContent="Saving…";try{var r=await send({type:"save",settings:cfg});status.textContent=r.ok?"Saved. Weather sources are refreshing.":(r.error||"Save failed.");}catch(e){status.textContent="Save failed: "+e;}});
+document.getElementById("forceRefresh").addEventListener("click",async function(){status.textContent="Requesting fresh weather…";try{var r=await send({type:"force_refresh"});status.textContent=r.ok?"Refresh requested. Weather will download on the next source request.":(r.error||"Refresh failed.");}catch(e){status.textContent="Refresh failed: "+e;}});
 })();
 </script></body></html>
