@@ -1,0 +1,33 @@
+name: Build Weather Source Test
+on:
+  push:
+    branches: [feature/weather-source-test-app]
+    paths:
+      - 'weather-test/**'
+      - '.github/workflows/build-weather-test.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: node --check weather-test/src/pkjs/index.js
+      - name: Install Pebble SDK
+        run: |
+          pipx install uv
+          pipx install pebble-tool
+          pebble sdk install latest
+      - name: Build test PBW
+        working-directory: weather-test
+        run: pebble build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: weather-source-test-pbw
+          path: weather-test/build/*.pbw
+          if-no-files-found: error
