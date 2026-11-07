@@ -298,6 +298,23 @@
           ],
           "suggestedRefreshIntervalSec": 900
         }
+      ],
+      "actions": [
+        {
+          "name": "force_refresh",
+          "description": "Immediately refresh weather using the Weather+ location and providers, bypassing the cache.",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "targets": [
+            "weather/location"
+          ],
+          "callerPermissions": [
+            "Location"
+          ]
+        }
       ]
     },
     "projectType": "plugin",
