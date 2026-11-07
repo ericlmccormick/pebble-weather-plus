@@ -195,6 +195,26 @@
       ]
     },
     "projectType": "plugin",
-    "configPage": "src/config.html"
+    "configPage": "src/config.html",
+    "resources": {
+      "media": [
+        {
+          "type": "png",
+          "name": "MENU_ICON",
+          "file": "images/weather_plus_25.png",
+          "menuIcon": true
+        },
+        {
+          "type": "png",
+          "name": "ICON_80",
+          "file": "images/weather_plus_80.png"
+        },
+        {
+          "type": "png",
+          "name": "ICON_144",
+          "file": "images/weather_plus_144.png"
+        }
+      ]
+    }
   }
 }
