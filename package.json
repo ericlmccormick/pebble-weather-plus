@@ -1,6 +1,6 @@
 {
   "name": "pebble-weather-plus",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "author": "Eric McCormick",
   "pebble": {
     "displayName": "Weather+",
@@ -290,9 +290,6 @@
             ],
             "alert_status": [
               "shortText"
-            ],
-            "time_format": [
-              "shortText"
             ]
           },
           "supportsMultiple": true,
@@ -300,23 +297,6 @@
             "Location"
           ],
           "suggestedRefreshIntervalSec": 900
-        }
-      ],
-      "actions": [
-        {
-          "name": "force_refresh",
-          "description": "Immediately refresh weather using the Weather+ location and providers, bypassing the cache.",
-          "parameters": {
-            "type": "object",
-            "properties": {},
-            "additionalProperties": false
-          },
-          "targets": [
-            "weather/location"
-          ],
-          "callerPermissions": [
-            "Location"
-          ]
         }
       ]
     },
