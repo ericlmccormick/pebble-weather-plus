@@ -290,6 +290,9 @@
             ],
             "alert_status": [
               "shortText"
+            ],
+            "time_format": [
+              "shortText"
             ]
           },
           "supportsMultiple": true,
