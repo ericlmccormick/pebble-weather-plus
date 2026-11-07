@@ -1,6 +1,6 @@
 {
   "name": "pebble-weather-plus",
-  "version": "0.4.7",
+  "version": "1.0.0",
   "author": "Eric McCormick",
   "pebble": {
     "displayName": "Weather+",
