@@ -186,13 +186,16 @@
             ],
             "daily_condition_code": [
               "series.longText"
+            ],
+            "last_fetched_at": [
+              "timestamp"
             ]
           },
           "supportsMultiple": true,
           "callerPermissions": [
             "Location"
           ],
-          "suggestedRefreshIntervalSec": 1800
+          "suggestedRefreshIntervalSec": 900
         }
       ]
     },
