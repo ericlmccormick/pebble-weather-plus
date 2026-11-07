@@ -43,7 +43,7 @@ if(c.locationSource==="fixed"){
 const pos=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{maximumAge:TTL,timeout:15000}));
 return [{id:"weatherplus-gps",name:"Current location",lat:pos.coords.latitude,lon:pos.coords.longitude}];
 }
-async function json(url,headers){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),16000);try{const response=await fetch(url,{headers:headers||{},signal:controller.signal});if(!response.ok)throw Error("HTTP "+response.status);return await response.json()}finally{clearTimeout(timeout)}}
+async function json(url,headers){const response=await fetch(url,{headers:headers||{}});if(!response.ok)throw Error("HTTP "+response.status);return await response.json()}
 async function openMeteo(place){const h="temperature_2m,apparent_temperature,dew_point_2m,relative_humidity_2m,precipitation_probability,precipitation,rain,snowfall,wind_speed_10m,wind_gusts_10m,wind_direction_10m,uv_index,cloud_cover,surface_pressure,visibility,weather_code,is_day,shortwave_radiation,cape";
 const d="temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,rain_sum,snowfall_sum,uv_index_max,sunrise,sunset,weather_code";
 const url="https://api.open-meteo.com/v1/forecast?latitude="+place.lat+"&longitude="+place.lon+"&hourly="+h+"&daily="+d+"&timezone=auto&timeformat=unixtime&forecast_days=8&wind_speed_unit=ms";
