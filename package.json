@@ -15,7 +15,9 @@
             "api.open-meteo.com",
             "api.weather.gov",
             "api.met.no",
-            "api.openweathermap.org"
+            "api.openweathermap.org",
+            "api.zippopotam.us",
+            "geocoding-api.open-meteo.com"
           ]
         }
       }
