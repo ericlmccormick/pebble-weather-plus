@@ -1,0 +1,48 @@
+name: Build Weather+ PBW
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: weather-plus-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package plugin PBW
+        run: python3 scripts/pack-plugin-pbw.py .
+      - name: Validate PBW contents
+        run: |
+          python3 - <<'PY'
+          import json, zipfile
+          path = "build/pebble-weather-plus.pbw"
+          with zipfile.ZipFile(path) as z:
+              app = json.loads(z.read("appinfo.json"))
+              assert app["projectType"] == "plugin"
+              assert "src/plugin/index.js" in z.namelist()
+              assert app["plugin"]["script"] == "src/plugin/index.js"
+              print("Validated", path)
+          PY
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pebble-weather-plus-pbw
+          path: build/pebble-weather-plus.pbw
+          if-no-files-found: error
+      - name: Publish standalone PBW on rolling development release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view latest-dev >/dev/null 2>&1; then
+            gh release create latest-dev --title "Latest development build" --notes "Automatically updated from main. Development build; not a tested production release." --prerelease --target "${GITHUB_SHA}"
+          fi
+          gh release upload latest-dev build/pebble-weather-plus.pbw --clobber
+          echo "Direct file: https://github.com/${GITHUB_REPOSITORY}/releases/download/latest-dev/pebble-weather-plus.pbw" >> "${GITHUB_STEP_SUMMARY}"
