@@ -17,6 +17,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Generate transparent Weather+ PNG icons
+        run: |
+          python3 -m pip install --quiet cairosvg
+          mkdir -p images
+          python3 - <<'PY'
+          import cairosvg
+          for size in (25, 48, 80, 144):
+              cairosvg.svg2png(url="src/icon.svg", write_to=f"images/weather_plus_{size}.png", output_width=size, output_height=size)
+          PY
       - name: Package plugin PBW
         run: python3 scripts/pack-plugin-pbw.py .
       - name: Validate PBW contents
@@ -29,6 +38,9 @@ jobs:
               assert app["projectType"] == "plugin"
               assert "src/plugin/index.js" in z.namelist()
               assert "src/config.html" in z.namelist()
+              for size in (25, 80, 144):
+                  assert f"images/weather_plus_{size}.png" in z.namelist()
+              assert any(x.get("menuIcon") for x in app["resources"]["media"])
               assert app["configPage"] == "src/config.html"
               assert app["plugin"]["script"] == "src/plugin/index.js"
               print("Validated", path)
