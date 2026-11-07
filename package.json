@@ -1,6 +1,6 @@
 {
   "name": "pebble-weather-plus",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Eric McCormick",
   "pebble": {
     "displayName": "Pebble Weather+",
@@ -194,6 +194,7 @@
         }
       ]
     },
-    "projectType": "plugin"
+    "projectType": "plugin",
+    "configPage": "src/config.html"
   }
 }
