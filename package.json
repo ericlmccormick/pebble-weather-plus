@@ -1,6 +1,6 @@
 {
   "name": "pebble-weather-plus",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": "Eric McCormick",
   "pebble": {
     "displayName": "Weather+",
@@ -189,6 +189,12 @@
             ],
             "last_fetched_at": [
               "timestamp"
+            ],
+            "alert_count": [
+              "numericValue"
+            ],
+            "alert_headline": [
+              "shortText"
             ]
           },
           "supportsMultiple": true,
