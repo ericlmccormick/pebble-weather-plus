@@ -193,6 +193,7 @@
           "suggestedRefreshIntervalSec": 1800
         }
       ]
-    }
+    },
+    "projectType": "plugin"
   }
 }
