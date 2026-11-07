@@ -1,0 +1,16 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Weather Source Test</title>
+<style>body{font:16px system-ui,sans-serif;margin:18px;line-height:1.45}select,button{font:inherit;padding:10px;margin:8px 0;width:100%;box-sizing:border-box}textarea{box-sizing:border-box;width:100%;height:48vh;font:12px monospace;padding:10px;white-space:pre;overflow:auto}label{font-weight:600}p{color:#555}</style></head>
+<body><h2>Weather Source Test</h2><label for="source">Weather plugin</label><select id="source"><option>Loading installed plugins...</option></select><button id="refresh">Refresh weather from selected plugin</button><p id="status">Loading...</p><label for="report">Watch diagnostic report</label><textarea id="report" readonly></textarea><button id="copy">Copy report</button>
+<script>
+var source=document.getElementById('source'),report=document.getElementById('report'),status=document.getElementById('status');
+function call(message){return Pebble.sendMessage('pkjs',message);}
+function show(r){if(!r)return;if(r.report!==undefined)report.value=r.report;if(r.status)status.textContent=r.status;}
+function load(){call({type:'getReport'}).then(function(r){source.innerHTML='';(r.plugins||[]).forEach(function(p){var o=document.createElement('option');o.value=p.uuid;o.textContent=p.name;o.selected=p.uuid===r.selected;source.appendChild(o);});if(!source.options.length){source.innerHTML='<option>No weather plugins installed</option>';source.disabled=true;}show(r);}).catch(function(e){status.textContent='Unable to load plugins: '+e;});}
+source.onchange=function(){status.textContent='Selecting source...';call({type:'selectSource',uuid:source.value}).then(function(r){status.textContent=r.error||'Selected. Press Refresh weather.';show(r);}).catch(function(e){status.textContent=String(e);});};
+document.getElementById('refresh').onclick=function(){status.textContent='Requesting weather...';call({type:'refresh'}).then(function(r){if(r.error)status.textContent=r.error;else setTimeout(load,1800);}).catch(function(e){status.textContent=String(e);});};
+document.getElementById('copy').onclick=function(){report.focus();report.select();if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(report.value).then(function(){status.textContent='Copied';}).catch(function(){document.execCommand('copy');});}else document.execCommand('copy');};
+Pebble.addEventListener('ready',function(e){if(e.target==='pkjs')load();});
+Pebble.addEventListener('configmessage',function(e){if(e.data&&e.data.type==='report')show(e.data);});
+load();
+</script></body></html>
