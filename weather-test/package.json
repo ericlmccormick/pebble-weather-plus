@@ -1,0 +1,41 @@
+{
+  "name": "weather-source-test",
+  "version": "0.1.0",
+  "author": "Eric McCormick",
+  "keywords": [
+    "pebble-app"
+  ],
+  "pebble": {
+    "displayName": "Weather Source Test",
+    "uuid": "a19b6d27-53fe-47b4-8e64-3a1f6c90e8d2",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "aplite",
+      "basalt",
+      "chalk",
+      "diorite",
+      "emery",
+      "flint",
+      "gabbro"
+    ],
+    "watchapp": {
+      "watchface": false
+    },
+    "messageKeys": [
+      "summary",
+      "details",
+      "status",
+      "refresh"
+    ],
+    "resources": {
+      "media": []
+    },
+    "capabilities": [
+      "configurable"
+    ],
+    "usesPermissions": [
+      "Location"
+    ]
+  }
+}
