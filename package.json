@@ -1,0 +1,198 @@
+{
+  "name": "pebble-weather-plus",
+  "version": "0.1.0",
+  "author": "Eric McCormick",
+  "pebble": {
+    "displayName": "Pebble Weather+",
+    "uuid": "7f7b6c10-93e0-4f4c-9237-7e8204c5a121",
+    "sdkVersion": "3",
+    "usesPermissions": [
+      "Location",
+      {
+        "name": "Internet",
+        "parameters": {
+          "domains": [
+            "api.open-meteo.com",
+            "api.weather.gov",
+            "api.met.no",
+            "api.openweathermap.org"
+          ]
+        }
+      }
+    ],
+    "plugin": {
+      "description": "Seven-day multi-provider weather forecasts, with standard Pebble weather readings and extended hourly and daily meteorological data.",
+      "script": "src/plugin/index.js",
+      "sources": [
+        {
+          "category": "weather",
+          "items": [
+            "location"
+          ],
+          "properties": {
+            "name": [
+              "shortText"
+            ],
+            "temperature": [
+              "numericValue",
+              "shortText",
+              "longText"
+            ],
+            "feels_like": [
+              "numericValue",
+              "shortText",
+              "longText"
+            ],
+            "high": [
+              "numericValue",
+              "shortText"
+            ],
+            "low": [
+              "numericValue",
+              "shortText"
+            ],
+            "condition": [
+              "shortText",
+              "longText"
+            ],
+            "condition_code": [
+              "longText"
+            ],
+            "uv_index": [
+              "numericValue",
+              "shortText"
+            ],
+            "precipitation": [
+              "numericValue",
+              "shortText"
+            ],
+            "humidity": [
+              "numericValue",
+              "shortText"
+            ],
+            "wind_speed": [
+              "numericValue",
+              "shortText"
+            ],
+            "wind_direction": [
+              "numericValue"
+            ],
+            "utc_offset": [
+              "numericValue"
+            ],
+            "sunrise": [
+              "timestamp"
+            ],
+            "sunset": [
+              "timestamp"
+            ],
+            "provider": [
+              "shortText"
+            ],
+            "updated_at": [
+              "timestamp"
+            ],
+            "hourly_temperature": [
+              "series.numericValue"
+            ],
+            "hourly_feels_like": [
+              "series.numericValue"
+            ],
+            "hourly_dew_point": [
+              "series.numericValue"
+            ],
+            "hourly_humidity": [
+              "series.numericValue"
+            ],
+            "hourly_precipitation": [
+              "series.numericValue"
+            ],
+            "hourly_precipitation_amount": [
+              "series.numericValue"
+            ],
+            "hourly_rain": [
+              "series.numericValue"
+            ],
+            "hourly_snowfall": [
+              "series.numericValue"
+            ],
+            "hourly_wind_speed": [
+              "series.numericValue"
+            ],
+            "hourly_wind_gust": [
+              "series.numericValue"
+            ],
+            "hourly_wind_direction": [
+              "series.numericValue"
+            ],
+            "hourly_uv_index": [
+              "series.numericValue"
+            ],
+            "hourly_cloud_cover": [
+              "series.numericValue"
+            ],
+            "hourly_pressure": [
+              "series.numericValue"
+            ],
+            "hourly_visibility": [
+              "series.numericValue"
+            ],
+            "hourly_weather_code": [
+              "series.numericValue"
+            ],
+            "hourly_condition_code": [
+              "series.longText"
+            ],
+            "hourly_is_day": [
+              "series.numericValue"
+            ],
+            "hourly_solar_radiation": [
+              "series.numericValue"
+            ],
+            "hourly_cape": [
+              "series.numericValue"
+            ],
+            "daily_high": [
+              "series.numericValue"
+            ],
+            "daily_low": [
+              "series.numericValue"
+            ],
+            "daily_precipitation": [
+              "series.numericValue"
+            ],
+            "daily_precipitation_amount": [
+              "series.numericValue"
+            ],
+            "daily_rain": [
+              "series.numericValue"
+            ],
+            "daily_snowfall": [
+              "series.numericValue"
+            ],
+            "daily_uv_index": [
+              "series.numericValue"
+            ],
+            "daily_sunrise": [
+              "series.timestamp"
+            ],
+            "daily_sunset": [
+              "series.timestamp"
+            ],
+            "daily_weather_code": [
+              "series.numericValue"
+            ],
+            "daily_condition_code": [
+              "series.longText"
+            ]
+          },
+          "supportsMultiple": true,
+          "callerPermissions": [
+            "Location"
+          ],
+          "suggestedRefreshIntervalSec": 1800
+        }
+      ]
+    }
+  }
+}
