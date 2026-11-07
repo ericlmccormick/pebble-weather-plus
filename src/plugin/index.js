@@ -1,9 +1,9 @@
 /* Pebble Weather+ 0.1.0 — normalized seven-day forecast. */
 const H=3600, D=86400, TTL=1800000;
 const SETTINGS_KEY="weatherplus.settings.v1";
-const DEFAULT_SETTINGS={locationSource:"gps",latitude:"",longitude:"",locationName:"Custom location",refreshMinutes:"30",provider:"auto",temperature:"C",wind:"ms",precipitation:"mm",pressure:"hPa",visibility:"m"};
+const DEFAULT_SETTINGS={locationSource:"gps",locationQuery:"",refreshMinutes:"30",provider:"auto",temperature:"C",wind:"ms",precipitation:"mm",pressure:"hPa",visibility:"m"};
 const OPTIONS={locationSource:["gps","fixed"],refreshMinutes:["15","30","60","180","360","1440"],provider:["auto","openmeteo","metno","nws","openweather"],temperature:["C","F","K","R"],wind:["ms","kmh","mph","knots"],precipitation:["mm","in"],pressure:["hPa","inHg","mmHg"],visibility:["m","km","mi"]};
-function settings(){let raw={};try{raw=JSON.parse(localStorage.getItem(SETTINGS_KEY)||"{}")||{}}catch(e){}const out={};Object.keys(DEFAULT_SETTINGS).forEach(k=>out[k]=OPTIONS[k].includes(raw[k])?raw[k]:DEFAULT_SETTINGS[k]);for(const k of ["latitude","longitude","locationName"])out[k]=typeof raw[k]==="string"?raw[k]:DEFAULT_SETTINGS[k];out.apiKey=typeof raw.apiKey==="string"?raw.apiKey.trim():"";return out;}
+function settings(){let raw={};try{raw=JSON.parse(localStorage.getItem(SETTINGS_KEY)||"{}")||{}}catch(e){}const out={};Object.keys(DEFAULT_SETTINGS).forEach(k=>out[k]=OPTIONS[k].includes(raw[k])?raw[k]:DEFAULT_SETTINGS[k]);for(const k of ["locationQuery"])out[k]=typeof raw[k]==="string"?raw[k]:DEFAULT_SETTINGS[k];out.apiKey=typeof raw.apiKey==="string"?raw.apiKey.trim():"";return out;}
 function converted(v,k,c){if(v==null||!Number.isFinite(Number(v)))return {value:null,unit:""};const n=Number(v);
 if(["temperature","feels_like","dew_point","high","low"].includes(k)){const u=c.temperature;return {value:u==="F"?n*9/5+32:u==="K"?n+273.15:u==="R"?(n+273.15)*9/5:n,unit:{C:"°C",F:"°F",K:"K",R:"°R"}[u]};}
 if(["wind_speed","wind_gust"].includes(k))return {value:n*({ms:1,kmh:3.6,mph:2.2369362921,knots:1.9438444924}[c.wind]),unit:{ms:"m/s",kmh:"km/h",mph:"mph",knots:"knots"}[c.wind]};
@@ -23,9 +23,17 @@ function series(values,start,step,unit,kind){const shape=kind==="timestamp"?"tim
 function get(obj,key){return obj&&obj[key]||[];}
 async function locations(c){
 if(c.locationSource==="fixed"){
- const lat=Number(c.latitude),lon=Number(c.longitude);
- if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat< -90||lat>90||lon< -180||lon>180||c.latitude===""||c.longitude==="")throw Error("Invalid fixed location coordinates");
- return [{id:"weatherplus-fixed",name:c.locationName||"Custom location",lat,lon}];
+ const query=(c.locationQuery||"").trim();
+ if(!query)throw Error("Enter ZIP code or city");
+ const zip=/^\d{5}(?:,US)?$/i.test(query);
+ const term=query.replace(/,US$/i,"");
+ const url=zip?"https://api.zippopotam.us/us/"+encodeURIComponent(term):
+   "https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(term)+"&count=1&format=json";
+ const result=await json(url);
+ const p=zip&&result.places&&result.places[0];
+ const g=!zip&&result.results&&result.results[0];
+ if(!p&&!g)throw Error("Location not found: "+query);
+ return [{id:"weatherplus-fixed",name:zip?term:(g.name||term),lat:Number(p?p.latitude:g.latitude),lon:Number(p?p.longitude:g.longitude)}];
 }
 const pos=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{maximumAge:Math.min(Number(c.refreshMinutes)*60000,1800000),timeout:15000}));
 return [{id:"weatherplus-gps",name:"Current location",lat:pos.coords.latitude,lon:pos.coords.longitude}];
@@ -63,6 +71,6 @@ Pebble.registerSourceHandler(async(request,respond)=>{if(request.category!=="wea
 
 Pebble.registerConfigHandler(function(message,respond){
 if(message&&message.type==="get"){respond({settings:settings()});return;}
-if(message&&message.type==="save"){const incoming=message.settings||{};const clean={};Object.keys(DEFAULT_SETTINGS).forEach(k=>{clean[k]=OPTIONS[k].includes(incoming[k])?incoming[k]:DEFAULT_SETTINGS[k]});for(const k of ["latitude","longitude","locationName"])clean[k]=typeof incoming[k]==="string"?incoming[k].trim():DEFAULT_SETTINGS[k];if(clean.locationSource==="fixed"){const lat=Number(clean.latitude),lon=Number(clean.longitude);if(!clean.latitude||!clean.longitude||!Number.isFinite(lat)||!Number.isFinite(lon)||lat< -90||lat>90||lon< -180||lon>180){respond({error:"Enter valid latitude (-90 to 90) and longitude (-180 to 180)."});return;}}clean.apiKey=typeof incoming.apiKey==="string"?incoming.apiKey.trim():"";localStorage.setItem(SETTINGS_KEY,JSON.stringify(clean));Pebble.refreshSources(["weather/location"]);respond({ok:true,settings:clean});return;}
+if(message&&message.type==="save"){const incoming=message.settings||{};const clean={};Object.keys(DEFAULT_SETTINGS).forEach(k=>{clean[k]=OPTIONS[k].includes(incoming[k])?incoming[k]:DEFAULT_SETTINGS[k]});for(const k of ["latitude","longitude","locationName"])clean[k]=typeof incoming[k]==="string"?incoming[k].trim():DEFAULT_SETTINGS[k];if(clean.locationSource==="fixed"&&!clean.locationQuery){respond({error:"Enter a ZIP code or city."});return;}clean.apiKey=typeof incoming.apiKey==="string"?incoming.apiKey.trim():"";localStorage.setItem(SETTINGS_KEY,JSON.stringify(clean));Pebble.refreshSources(["weather/location"]);respond({ok:true,settings:clean});return;}
 respond({error:"Unknown settings request"});
 });
