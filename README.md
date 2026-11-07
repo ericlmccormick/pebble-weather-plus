@@ -1,4 +1,4 @@
-# Pebble Weather+
+# Weather+
 
 Experimental seven-day phone-side Pebble weather plugin, built from the Timeline WX provider design.
 
