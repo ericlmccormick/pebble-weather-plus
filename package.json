@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "author": "Eric McCormick",
   "pebble": {
-    "displayName": "Pebble Weather+",
+    "displayName": "Weather+",
     "uuid": "7f7b6c10-93e0-4f4c-9237-7e8204c5a121",
     "sdkVersion": "3",
     "usesPermissions": [
