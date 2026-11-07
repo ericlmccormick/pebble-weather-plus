@@ -33,9 +33,6 @@
     },
     "capabilities": [
       "configurable"
-    ],
-    "usesPermissions": [
-      "Location"
     ]
   }
 }
