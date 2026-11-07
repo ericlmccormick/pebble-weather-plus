@@ -33,6 +33,7 @@
     },
     "capabilities": [
       "configurable"
-    ]
+    ],
+    "configPage": "config.html"
   }
 }
