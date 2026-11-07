@@ -6,6 +6,14 @@ var HOURLY=['temperature','feels_like','dew_point','humidity','precipitation','p
 var DAILY=['high','low','precipitation','precipitation_amount','rain','snowfall','uv_index','sunrise','sunset','weather_code','condition_code'];
 var PROPS=BASE.concat(HOURLY.map(function(x){return 'hourly_'+x;}),DAILY.map(function(x){return 'daily_'+x;}));
 var subscriptions=[];
+var selectedPlugin=localStorage.getItem('weatherTestPlugin')||'';
+function weatherPlugins(){
+ var result=[];
+ try{Pebble.enumeratePlugins().forEach(function(p){(p.sources||[]).forEach(function(src){if(src.category==='weather'&&(src.items||[]).indexOf('location')!==-1){result.push({uuid:p.uuid,name:p.name||p.uuid,properties:src.properties||{}});}});});}catch(e){console.log('Weather plugin discovery failed: '+e);}
+ return result;
+}
+function selectedSource(){var list=weatherPlugins();return list.filter(function(p){return p.uuid===selectedPlugin;})[0]||list[0]||null;}
+
 var lastReport='Waiting for first weather response. Open the watch app to request data.';
 var lastStatus='Waiting';
 function populated(x){if(x===null||x===undefined)return false;if(typeof x==='number')return isFinite(x);if(typeof x==='string')return x.length>0;return true;}
@@ -33,7 +41,8 @@ function onData(env){
  var p=instances[0]&&instances[0].properties||{};
  var x=inspect(p);
  var fetched=p.last_fetched_at&&p.last_fetched_at.timestamp&&p.last_fetched_at.timestamp.value;
- var provider=p.provider&&p.provider.shortText&&p.provider.shortText.text||'selected plugin';
+ var chosen=selectedSource();
+ var provider=chosen?chosen.name:'No weather plugin';
  var summary='Fields '+x.keys+'\nScalars '+x.scalar+' Series '+x.series+'\nSamples '+x.available+'/'+x.values+'\nUV '+x.uv+'h  Hour '+x.hours+'\nDaily '+x.days+'d';
  var details=provider+' | '+instances.length+' locations\n'+(fetched?'Fetched '+new Date(fetched*1000).toLocaleString():'No fetch timestamp')+'\nSELECT: recheck';
  var report={capturedAt:new Date().toISOString(),source:'weather/location',provider:provider,instances:instances.length,counts:x,receivedProperties:Object.keys(p),lastFetchedAt:fetched||null,watchSummary:summary,watchDetails:details};
@@ -47,49 +56,29 @@ function subscribe(){
  send('Requesting plugin data...','SELECT: recheck','');
  // Subscribe to all declared Weather+ fields. Unknown fields from other plugins
  // may be omitted by the source framework; compare the received keys in logs.
- subscriptions.push(Pebble.subscribeToSource({category:'weather',item:'location',properties:PROPS,onData:onData,onError:function(err){
+ var chosen=selectedSource();
+ if(!chosen){lastReport='No installed weather/location plugins found.';send(lastReport,'Install a weather plugin','');return;}
+ selectedPlugin=chosen.uuid;
+ var declared=Object.keys(chosen.properties||{});
+ var requested=declared.length?declared:PROPS;
+ subscriptions.push(Pebble.subscribeToSource({category:'weather',item:'location',plugin:chosen.uuid,properties:requested,onData:onData,onError:function(err){
   var msg='Source error: '+(err&&err.code||JSON.stringify(err));lastReport=msg;console.log(msg);send(msg,'Check selected weather plugin',msg);
  }}));
 }
 Pebble.addEventListener('ready',function(){subscribe();});
 Pebble.addEventListener('appmessage',function(e){if(e.payload&&e.payload.refresh)subscribe();});
 
-/* Config is a read-only, copyable mirror of the watch diagnostic snapshot.
- * Source selection is managed by the Pebble phone app, not by this consumer.
- */
-function configPage(){
- return '<!doctype html><html><head><meta charset="utf-8">'+
- '<meta name="viewport" content="width=device-width,initial-scale=1">'+
- '<title>Weather Source Test</title>'+
- '<style>body{font:15px system-ui,sans-serif;margin:18px;line-height:1.45}h2{margin:0 0 8px}'+
- 'textarea{box-sizing:border-box;width:100%;height:55vh;font:12px monospace;padding:10px;white-space:pre;overflow:auto}'+
- 'button{padding:12px;margin:8px 8px 8px 0;font-size:15px}p{color:#555}</style></head><body>'+
- '<h2>Weather Source Test</h2>'+
- '<p>Source: the weather plugin selected in the Pebble phone app. Change the plugin there, then request a new reading.</p>'+
- '<p id="status">Loading last watch reading...</p>'+
- '<textarea id="report" readonly aria-label="Copyable diagnostic report"></textarea>'+
- '<div><button id="copy">Copy report</button><button id="refresh">Recheck source</button></div>'+
- '<p>Counts show data delivered to this test app, not the original provider payload. Select on the watch also rechecks.</p>'+
- '<script>'+
- 'var box=document.getElementById("report"),status=document.getElementById("status");'+
- 'function load(){Pebble.sendMessage("pkjs",{type:"getReport"}).then(function(r){'+
- 'box.value=r.report||"No report yet";status.textContent=r.status||"Ready";'+
- '}).catch(function(e){status.textContent="Could not read app report: "+e;});}'+
- 'document.getElementById("copy").onclick=function(){box.focus();box.select();'+
- 'if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(box.value).then(function(){status.textContent="Copied";}).catch(function(){document.execCommand("copy");status.textContent="Selected for copying";});}'+
- 'else{document.execCommand("copy");status.textContent="Selected for copying";}};'+
- 'document.getElementById("refresh").onclick=function(){status.textContent="Requesting weather...";'+
- 'Pebble.sendMessage("pkjs",{type:"refresh"}).then(function(){setTimeout(load,1800);}).catch(function(e){status.textContent=String(e);});};'+
- 'Pebble.addEventListener("ready",function(e){if(e.target==="pkjs")load();});'+
- 'load();'+
- '</script></body></html>';
-}
-Pebble.addEventListener('showConfiguration',function(){
- Pebble.openURL('data:text/html;charset=utf-8,'+encodeURIComponent(configPage()));
-});
+
 Pebble.addEventListener('configmessage',function(e){
  var m=e.data||{};
- if(m.type==='getReport'){e.respond({report:lastReport,status:lastStatus});return;}
+ if(m.type==='getReport'){e.respond({report:lastReport,status:lastStatus,plugins:weatherPlugins(),selected:selectedPlugin});return;}
+ if(m.type==='selectSource'){
+  var p=weatherPlugins().filter(function(p){return p.uuid===m.uuid;})[0];
+  if(!p){e.respond({error:'Weather plugin not installed'});return;}
+  selectedPlugin=p.uuid;localStorage.setItem('weatherTestPlugin',selectedPlugin);
+  lastReport='Selected '+p.name+'. Press Refresh weather to poll.';
+  e.respond({ok:true,selected:selectedPlugin,report:lastReport});return;
+ }
  if(m.type==='refresh'){subscribe();e.respond({ok:true});return;}
  e.respond({error:'Unknown request'});
 });
