@@ -1,6 +1,6 @@
 {
   "name": "pebble-weather-plus",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "author": "Eric McCormick",
   "pebble": {
     "displayName": "Weather+",
@@ -27,7 +27,7 @@
       }
     ],
     "plugin": {
-      "description": "Seven-day multi-provider weather forecasts, with standard Pebble weather readings and extended hourly and daily meteorological data.",
+      "description": "Global multi-provider weather forecasts, optional air quality and marine data, and location-aware weather alerts via NWS, public MeteoAlarm feeds and OpenWeather where supported. OpenWeather requires a One Call 3.0 API key; each enabled source needs its Pebble Internet permission approved.",
       "script": "src/plugin/index.js",
       "sources": [
         {
@@ -285,6 +285,9 @@
               "series.numericValue"
             ],
             "alert_source": [
+              "shortText"
+            ],
+            "alert_status": [
               "shortText"
             ]
           },
