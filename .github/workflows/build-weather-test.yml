@@ -7,7 +7,7 @@ on:
       - '.github/workflows/build-weather-test.yml'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -31,3 +31,11 @@ jobs:
           name: weather-source-test-pbw
           path: weather-test/build/*.pbw
           if-no-files-found: error
+      - name: Publish direct PBW download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view weather-test-dev >/dev/null 2>&1; then
+            gh release create weather-test-dev --title "Weather Source Test development" --notes "Experimental weather diagnostic watch app; built from feature/weather-source-test-app." --prerelease --target "${GITHUB_SHA}"
+          fi
+          gh release upload weather-test-dev weather-test/build/weather-source-test.pbw --clobber
