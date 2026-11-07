@@ -26,6 +26,16 @@ jobs:
           for size in (25, 48, 80, 144):
               cairosvg.svg2png(url="src/icon.svg", write_to=f"images/weather_plus_{size}.png", output_width=size, output_height=size)
           PY
+      - name: Check plugin and settings JavaScript syntax
+        run: |
+          node --check src/plugin/index.js
+          python3 - <<'PY'
+          from pathlib import Path
+          page=Path("src/config.html").read_text()
+          script=page.split("<script>",1)[1].split("</script>",1)[0]
+          Path("/tmp/weather-plus-config.js").write_text(script)
+          PY
+          node --check /tmp/weather-plus-config.js
       - name: Package plugin PBW
         run: python3 scripts/pack-plugin-pbw.py .
       - name: Validate PBW contents
