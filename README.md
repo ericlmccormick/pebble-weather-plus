@@ -21,6 +21,8 @@ The Weather+ plugin owns weather settings when an app consumes it. Timeline WX's
 
 The repository contains the phone plugin at `src/plugin/index.js`, configuration page at `src/config.html`, and PBW packaging helper at `scripts/pack-plugin-pbw.py`. Use [GitHub Actions](.github/workflows/build-pbw.yml) for packaged builds or a compatible plugin-enabled Pebble SDK. The manifest's `weather` source category determines store discovery.
 
+For error triage, alert semantics and missing data, see [Troubleshooting and validation](TROUBLESHOOTING.md).
+
 ## Limitations
 
 Weather reports may include missing/null values. Provider outages, limited geographical coverage and unavailable alerts do not necessarily indicate a plugin fault. Local-alert validation distinguishes missing data from an explicit empty alert list where the provider makes this possible. Test with a real phone and watch; code-level validation alone does not prove every provider is operational.
