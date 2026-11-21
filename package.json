@@ -84,6 +84,9 @@
             "wind_direction": [
               "numericValue"
             ],
+            "timezone": [
+              "shortText"
+            ],
             "utc_offset": [
               "numericValue"
             ],
