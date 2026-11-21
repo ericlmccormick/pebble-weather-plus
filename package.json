@@ -1,6 +1,6 @@
 {
   "name": "pebble-weather-plus",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Eric McCormick",
   "pebble": {
     "displayName": "Weather+",
@@ -83,6 +83,9 @@
             ],
             "wind_direction": [
               "numericValue"
+            ],
+            "timezone": [
+              "shortText"
             ],
             "utc_offset": [
               "numericValue"

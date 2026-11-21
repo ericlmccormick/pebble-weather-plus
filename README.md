@@ -1,6 +1,6 @@
 # Weather+ — shared Pebble weather plugin
 
-**Current source version: 1.0.0** (`package.json`). Weather+ is a phone-side plugin offering normalized weather data to Pebble apps such as [Timeline WX](https://github.com/ericlmccormick/Pebble-Timeline-WX).
+**Current source version: 1.1.0** (`package.json`). Weather+ is a phone-side plugin offering normalized weather data to Pebble apps such as [Timeline WX](https://github.com/ericlmccormick/Pebble-Timeline-WX).
 
 ## What it provides
 
