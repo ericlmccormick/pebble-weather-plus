@@ -173,14 +173,56 @@ function validateForecast(data,properties){
  return {status,...stats,issues,provider:data.provider,model:data.model||null,checkedAt:new Date().toISOString(),note:"Plausibility and schema checks; not independent forecast accuracy verification"};
 }
 
-function envelope(place,data,c){const now=Math.floor(Date.now()/1000);const offset=data.offset||0;const midnight=Math.floor((now+offset)/D)*D-offset;const hourStart=Math.floor(now/H)*H;
+// Hold the first valid whole-day HIGH/LOW forecast until the next local date
+// or travel of >=40 km (approximately 25 miles). Current temperature, hourly
+// weather and subsequent forecast days continue updating normally.
+const DAILY_EXTREMA_HOLD_KEY="weatherplus.dailyExtremaHold.v1";
+const DAILY_EXTREMA_MOVE_KM=40;
+function dayHoldDistanceKm(a,b,lat,lon){
+ const rad=Math.PI/180;
+ const dlat=(lat-a)*rad,dlon=(lon-b)*rad;
+ const q=Math.sin(dlat/2)**2+Math.cos(a*rad)*Math.cos(lat*rad)*
+   Math.sin(dlon/2)**2;
+ return 12742*Math.asin(Math.min(1,Math.sqrt(q)));
+}
+function holdTodayExtrema(place,data){
+ const offset=Number(data.offset)||0;
+ const todayKey=Math.floor((Date.now()/1000+offset)/D);
+ const row=(data.days||[]).find(d=>
+   d&&Number.isFinite(d.time)&&Math.floor((d.time+offset)/D)===todayKey);
+ if(!row || !Number.isFinite(place.lat)||!Number.isFinite(place.lon))
+   return data;
+ let saved=null;
+ try{saved=JSON.parse(localStorage.getItem(DAILY_EXTREMA_HOLD_KEY)||"null");}
+ catch(e){}
+ const matches=saved&&saved.day===todayKey&&
+   Number.isFinite(saved.lat)&&Number.isFinite(saved.lon)&&
+   Number.isFinite(saved.high)&&Number.isFinite(saved.low)&&
+   dayHoldDistanceKm(saved.lat,saved.lon,place.lat,place.lon)<DAILY_EXTREMA_MOVE_KM;
+ let baseline=matches?saved:null;
+ if(!baseline){
+   if(!Number.isFinite(row.high)||!Number.isFinite(row.low)||
+      row.high<row.low||row.high>75||row.low< -120)
+     return data; // Never lock incomplete or forecast-hours-only extrema.
+   baseline={day:todayKey,lat:place.lat,lon:place.lon,
+     high:row.high,low:row.low,at:Date.now()};
+   try{localStorage.setItem(DAILY_EXTREMA_HOLD_KEY,JSON.stringify(baseline));}
+   catch(e){/* Storage may be unavailable, but this snapshot still works. */}
+ }
+ const days=data.days.map(d=>d===row?{...d,high:baseline.high,low:baseline.low}:d);
+ return {...data,days,
+   dailyExtremaHeld:true,
+   dailyExtremaHoldReason:matches?"same-day baseline":"new-day-or-moved",
+   dailyExtremaHoldDay:todayKey};
+}
+function envelope(place,data,c){data=holdTodayExtrema(place,data);const now=Math.floor(Date.now()/1000);const offset=data.offset||0;const midnight=Math.floor((now+offset)/D)*D-offset;const hourStart=Math.floor(now/H)*H;
 const map=new Map(data.hours.map(x=>[Math.floor(x.time/H)*H,x]));const days=new Map(data.days.map(x=>[Math.floor((x.time+offset)/D),x]));const hourRows=Array.from({length:168},(_,i)=>map.get(hourStart+i*H)||null);const dayRows=Array.from({length:7},(_,i)=>days.get(Math.floor((midnight+offset)/D)+i)||null);
 const current=data.hours.find(x=>x.time<=now&&x.time+H>now)||data.hours.find(x=>x.time>=now)||data.hours[0]||{};const today=dayRows[0]||{};const props={name:text(place.name),provider:text(data.provider),alert_count:data.alerts?numeric(data.alerts.count,""):null,alert_headline:data.alerts&&data.alerts.headline?text(data.alerts.headline):null,alert_status:data.alerts?text(data.alerts.status):null,alert_source:data.alerts?text(data.alerts.source):null,updated_at:at(Math.floor((data.fetchedAt||Date.now())/1000)),last_fetched_at:at(Math.floor((data.fetchedAt||Date.now())/1000)),utc_offset:numeric(offset/60,"min"),timezone:data.timezone?text(data.timezone):null,temperature:numeric(converted(current.temperature,"temperature",c).value,converted(current.temperature,"temperature",c).unit),feels_like:numeric(converted(current.feels_like,"feels_like",c).value,converted(current.feels_like,"feels_like",c).unit),high:numeric(converted(today.high,"high",c).value,converted(today.high,"high",c).unit),low:numeric(converted(today.low,"low",c).value,converted(today.low,"low",c).unit),condition:text(current.condition_code||"unknown"),condition_code:{longText:{text:current.condition_code||"unknown"}},uv_index:numeric(current.uv_index,""),precipitation:numeric(current.precipitation,"%"),humidity:numeric(current.humidity,"%"),wind_speed:numeric(converted(current.wind_speed,"wind_speed",c).value,converted(current.wind_speed,"wind_speed",c).unit),wind_direction:numeric(current.wind_direction,"°"),sunrise:at(today.sunrise),sunset:at(today.sunset)};
 for(const [k,unit] of Object.entries(HOURLY)){const values=hourRows.map(r=>r?.[k]??null);{const v=values.map(x=>unit===null?x:converted(x,k,c).value);const u=unit===null?null:converted(0,k,c).unit;props["hourly_"+k]=series(v,hourStart,H,u,unit===null?"text":"number")}}
 for(const [k,unit] of Object.entries(DAILY)){const values=dayRows.map(r=>r?.[k]??null);{const isTime=k==="sunrise"||k==="sunset";const v=values.map(x=>isTime||unit===null?x:converted(x,k,c).value);const u=isTime||unit===null?null:converted(0,k,c).unit;props["daily_"+k]=series(v,midnight,D,u,isTime?"timestamp":unit===null?"text":"number")}}
 const extra=(obj,k)=>{const rows=obj&&obj[k]||[];const map=new Map(rows.map(x=>[Math.floor(x.time/H)*H,x.value]));return Array.from({length:168},(_,i)=>map.get(hourStart+i*H)??null)};for(const [group,keys] of [["air",["aqi","european_aqi","pm25","pm10","ozone","no2","co","dust"]],["marine",["wave_height","wave_direction","wave_period","wind_wave_height","swell_wave_height","sea_temperature"]]])for(const k of keys){if(!data[group]||!data[group][k]||!data[group][k].length)continue;const unit=group==="marine"?({wave_height:"m",wave_direction:"°",wave_period:"s",wind_wave_height:"m",swell_wave_height:"m",sea_temperature:"°C"}[k]):({aqi:"",european_aqi:"",pm25:"µg/m³",pm10:"µg/m³",ozone:"µg/m³",no2:"µg/m³",co:"µg/m³",dust:"µg/m³"}[k]);const values=extra(data[group],k);props["hourly_"+k]=series(values,hourStart,H,unit,"number");const first=values.find(x=>x!=null);if(first!=null)props[k]=numeric(first,unit);}
-for(const k of Object.keys(props))if(props[k]===null)delete props[k];return {instanceId:place.id,properties:props};}
-Pebble.registerSourceHandler(async(request,respond)=>{if(request.category!=="weather"||request.item!=="location")return respond.error("PLUGIN_UNAVAILABLE");try{Pebble.subscribeSource({category:"preferences",item:"weather_location"});const c=settings();const force=forceRefreshPending;forceRefreshPending=false;diagnostic("location","Resolving location",{locationSource:c.locationSource,locationQuery:c.locationSource==="fixed"?c.locationQuery:"GPS",provider:c.provider});const places=await locations(c);diagnostic("fetch","Location resolved; requesting forecast",{locations:places.map(p=>p.name),provider:c.provider});const results=await Promise.all(places.map(async p=>{try{const data=await forecast(p,c,force);const result=envelope(p,data,c);diagnostic("success","Forecast delivered",{validation:validateForecast(data,result.properties),location:p.name,provider:data.provider,dailyExtremaSource:data.dailyExtremaSource||null,hours:data.hours.length,days:data.days.length,properties:Object.keys(result.properties).length,fromCache:!!data.fromCache,stale:!!data.stale,coverage:fieldCoverage(result.properties)});return result}catch(e){diagnostic("forecast-error",String(e.message||e),{location:p.name,provider:c.provider});return null}}));if(!results.some(Boolean)){const d=lastDiagnostic();respond.error("UNKNOWN",d&&d.message||"No forecast instances available");return;}respond.data({validUntilMs:Date.now()+TTL,instances:results.filter(Boolean)})}catch(e){diagnostic("source-error",String(e.message||e),{provider:settings().provider});respond.error("UNKNOWN",String(e.message||e))}});
+for(const k of Object.keys(props))if(props[k]===null)delete props[k];return {instanceId:place.id,properties:props,dailyExtremaHeld:!!data.dailyExtremaHeld};}
+Pebble.registerSourceHandler(async(request,respond)=>{if(request.category!=="weather"||request.item!=="location")return respond.error("PLUGIN_UNAVAILABLE");try{Pebble.subscribeSource({category:"preferences",item:"weather_location"});const c=settings();const force=forceRefreshPending;forceRefreshPending=false;diagnostic("location","Resolving location",{locationSource:c.locationSource,locationQuery:c.locationSource==="fixed"?c.locationQuery:"GPS",provider:c.provider});const places=await locations(c);diagnostic("fetch","Location resolved; requesting forecast",{locations:places.map(p=>p.name),provider:c.provider});const results=await Promise.all(places.map(async p=>{try{const data=await forecast(p,c,force);const result=envelope(p,data,c);diagnostic("success","Forecast delivered",{validation:validateForecast(data,result.properties),location:p.name,provider:data.provider,dailyExtremaSource:data.dailyExtremaSource||null,dailyExtremaHeld:!!result.dailyExtremaHeld,hours:data.hours.length,days:data.days.length,properties:Object.keys(result.properties).length,fromCache:!!data.fromCache,stale:!!data.stale,coverage:fieldCoverage(result.properties)});return result}catch(e){diagnostic("forecast-error",String(e.message||e),{location:p.name,provider:c.provider});return null}}));if(!results.some(Boolean)){const d=lastDiagnostic();respond.error("UNKNOWN",d&&d.message||"No forecast instances available");return;}respond.data({validUntilMs:Date.now()+TTL,instances:results.filter(Boolean)})}catch(e){diagnostic("source-error",String(e.message||e),{provider:settings().provider});respond.error("UNKNOWN",String(e.message||e))}});
 
 const WORLD_TEST_LOCATIONS=[
 {name:"Columbia, Maryland, US",lat:39.2037,lon:-76.8610,countryCode:"us"},
