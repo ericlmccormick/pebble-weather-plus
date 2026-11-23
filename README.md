@@ -5,8 +5,8 @@
 ## Daily high/low semantics (full local calendar day)
 
 **Morning baseline:** Today’s `high`/`low` and `daily_high[0]`/
-`daily_low[0]` now use the first valid full-day forecast received for that
-location and date. The pair is stored across app/plugin restarts and held during
+`daily_low[0]` now use the first valid full-day forecast received **at or after
+6:00 AM at the forecast location** on that date. The pair is stored across app/plugin restarts and held during
 normal updates. It resets after **40 km (about 25 miles) of travel**, or at the
 next **local midnight**. Current temperature, conditions, hourly series and
 tomorrow onward remain dynamic. This is a *stable forecast baseline*, not an
