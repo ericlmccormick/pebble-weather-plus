@@ -3,6 +3,8 @@ name: Build Weather+ PBW
 on:
   push:
     branches: [main, fix/full-calendar-day-extrema]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -64,6 +66,7 @@ jobs:
           path: build/pebble-weather-plus.pbw
           if-no-files-found: error
       - name: Publish standalone PBW on rolling development release
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
