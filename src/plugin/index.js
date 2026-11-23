@@ -86,10 +86,68 @@ function solarTimes(lat,lon,day){const rad=Math.PI/180,deg=180/Math.PI;const n=M
 function addSolar(place,data){const offset=data.offset||0;const start=Math.floor((Date.now()/1000+offset)/D)*D-offset;for(let i=0;i<9;i++){const key=Math.floor((start+i*D+offset)/D);let row=data.days.find(d=>Math.floor((d.time+offset)/D)===key);if(!row){row={time:start+i*D};data.days.push(row);}if(row.sunrise==null||row.sunset==null){const times=solarTimes(place.lat,place.lon,row.time+12*H);if(row.sunrise==null)row.sunrise=times.sunrise;if(row.sunset==null)row.sunset=times.sunset;}}data.days.sort((a,b)=>a.time-b.time);return data;}
 async function extras(place,c,data){const tasks=[];if(c.airQuality==="on")tasks.push((async()=>{try{const vars="us_aqi,european_aqi,pm2_5,pm10,ozone,nitrogen_dioxide,carbon_monoxide,dust,uv_index";const u="https://air-quality-api.open-meteo.com/v1/air-quality?latitude="+place.lat+"&longitude="+place.lon+"&hourly="+vars+"&forecast_days=7&timezone=GMT";const r=await json(u);const a=r.hourly||{};data.air={};for(const [k,v] of Object.entries({aqi:"us_aqi",european_aqi:"european_aqi",pm25:"pm2_5",pm10:"pm10",ozone:"ozone",no2:"nitrogen_dioxide",co:"carbon_monoxide",dust:"dust"})){data.air[k]=Array.isArray(a[v])?a.time.map((t,i)=>({time:stamp(t),value:a[v][i]})):[];}}catch(e){diagnostic("air-warning",String(e.message||e));}})());if(c.marine==="on")tasks.push((async()=>{try{const vars="wave_height,wave_direction,wave_period,wind_wave_height,swell_wave_height,sea_surface_temperature";const u="https://marine-api.open-meteo.com/v1/marine?latitude="+place.lat+"&longitude="+place.lon+"&hourly="+vars+"&forecast_days=7&timezone=GMT";const r=await json(u);const a=r.hourly||{};data.marine={};for(const [k,v] of Object.entries({wave_height:"wave_height",wave_direction:"wave_direction",wave_period:"wave_period",wind_wave_height:"wind_wave_height",swell_wave_height:"swell_wave_height",sea_temperature:"sea_surface_temperature"})){data.marine[k]=Array.isArray(a[v])?a.time.map((t,i)=>({time:stamp(t),value:a[v][i]})):[];}}catch(e){diagnostic("marine-warning",String(e.message||e));}})());await Promise.all(tasks);return data;}
 function enrichHours(hours){hours.forEach(h=>{if(h.dew_point==null&&h.temperature!=null&&h.humidity>0&&h.humidity<=100){const a=17.625,b=243.04,g=Math.log(h.humidity/100)+a*h.temperature/(b+h.temperature);h.dew_point=b*g/(a-g);h.dew_point_derived=true;}if(h.feels_like==null&&h.temperature!=null&&h.humidity!=null&&h.wind_speed!=null){const t=h.temperature,w=h.wind_speed;let apparent=null;if(t<=10&&w>1.34){const k=w*3.6;apparent=13.12+0.6215*t-11.37*Math.pow(k,0.16)+0.3965*t*Math.pow(k,0.16);}else if(t>=27&&h.humidity>=40){const tf=t*9/5+32,r=h.humidity;const hi=-42.379+2.04901523*tf+10.14333127*r-0.22475541*tf*r-0.00683783*tf*tf-0.05481717*r*r+0.00122874*tf*tf*r+0.00085282*tf*r*r-0.00000199*tf*tf*r*r;apparent=(hi-32)*5/9;}if(apparent!=null&&Number.isFinite(apparent)){h.feels_like=apparent;h.feels_like_derived=true;}}});return hours;}
+// NWS and MET Norway return forecast hours from 'now' forward. Their daily
+// minima therefore exclude last night's temperatures if aggregated after
+// sunrise. Fetch provider-native FULL local calendar-day min/max instead.
+// Open-Meteo daily aggregates cover midnight-to-midnight in timezone=auto.
+async function fullCalendarDayExtrema(place){
+ const url="https://api.open-meteo.com/v1/forecast?latitude="+place.lat+
+  "&longitude="+place.lon+
+  "&daily=temperature_2m_max,temperature_2m_min"+
+  "&timezone=auto&timeformat=unixtime&forecast_days=9&temperature_unit=celsius";
+ const r=await json(url),d=r&&r.daily;
+ if(!d||!Array.isArray(d.time)||!Array.isArray(d.temperature_2m_max)||
+    !Array.isArray(d.temperature_2m_min)||d.time.length<7)throw Error("Full-day daily temperatures missing");
+ const offset=Number(r.utc_offset_seconds);
+ if(!Number.isFinite(offset)||Math.abs(offset)>15*H)throw Error("Invalid daily timezone offset");
+ const today=Math.floor((Date.now()/1000+offset)/D);
+ const result=d.time.map((t,i)=>({
+   time:Number(t),high:d.temperature_2m_max[i],low:d.temperature_2m_min[i]
+ }));
+ for(let i=0;i<7;i++){
+   const row=result[i],key=Math.floor((row.time+offset)/D);
+   if(key!==today+i || !Number.isFinite(row.high)||!Number.isFinite(row.low)||
+      row.high<row.low||row.high>75||row.low< -120)
+     throw Error("Incomplete/misaligned full local calendar-day extrema");
+ }
+ return {days:result,offset,timezone:r.timezone||null};
+}
+function applyFullDayExtrema(data,extrema){
+ const hoursByDay=new Map(aggregate(data.hours,extrema.offset).map(d=>[
+   Math.floor((d.time+extrema.offset)/D),d
+ ]));
+ data.days=extrema.days.map(day=>{
+   const key=Math.floor((day.time+extrema.offset)/D);
+   return {...(hoursByDay.get(key)||{}),...day};
+ });
+ data.offset=extrema.offset;
+ data.timezone=extrema.timezone||data.timezone||null;
+ data.dailyExtremaSource="Open-Meteo daily (full local day)";
+ return data;
+}
 function aggregate(hours,offset){const days=[];const byDay={};hours.forEach(h=>{const key=Math.floor((h.time+offset)/D);(byDay[key]||(byDay[key]=[])).push(h)});Object.keys(byDay).sort().slice(0,7).forEach(key=>{const rows=byDay[key],values=k=>rows.map(x=>x[k]).filter(x=>x!=null&&Number.isFinite(x));const temps=values("temperature"),pop=values("precipitation"),uv=values("uv_index");days.push({time:Number(key)*D-offset,high:temps.length?Math.max(...temps):null,low:temps.length?Math.min(...temps):null,precipitation:pop.length?Math.max(...pop):null,uv_index:uv.length?Math.max(...uv):null,condition_code:rows[Math.floor(rows.length/2)]?.condition_code||"unknown"})});return days;}
-async function forecast(place,c,force){const key="wxplus:v6:"+JSON.stringify(c.providerPriorities)+":"+c.model+":"+c.airQuality+":"+c.marine+":"+c.alerts+":"+c.alertSource+":"+(c.apiKey?c.apiKey.slice(-6):"")+":"+place.lat.toFixed(3)+":"+place.lon.toFixed(3);let cached;try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}if(!force&&cached&&cached.data&&cached.data.hours&&Date.now()-cached.saved<TTL)return {...cached.data,fetchedAt:cached.saved,fromCache:true};
+async function forecast(place,c,force){const key="wxplus:v7:"+JSON.stringify(c.providerPriorities)+":"+c.model+":"+c.airQuality+":"+c.marine+":"+c.alerts+":"+c.alertSource+":"+(c.apiKey?c.apiKey.slice(-6):"")+":"+place.lat.toFixed(3)+":"+place.lon.toFixed(3);let cached;try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}if(!force&&cached&&cached.data&&cached.data.hours&&Date.now()-cached.saved<TTL)return {...cached.data,fetchedAt:cached.saved,fromCache:true};
 let data;const errors=[];const available={openmeteo:p=>openMeteo(p,c),metno:metno,nws:nws,openweather:p=>openweather(p,c.apiKey)};place.weatherAlertsEnabled=c.alerts==="on";const priorities=c.providerPriorities||DEFAULT_SETTINGS.providerPriorities;const order=PROVIDER_IDS.filter(id=>priorities[id]>0).sort((a,b)=>priorities[a]-priorities[b]);for(const id of order){if(id==="openweather"&&!c.apiKey){errors.push("OpenWeather: API key not configured");continue;}try{const candidate=await available[id](place);if(candidate.hours&&candidate.hours.length>=24&&candidate.hours.some(h=>h.temperature!=null&&Number.isFinite(h.temperature))){data=candidate;break;}errors.push(id+": insufficient usable forecast hours")}catch(e){errors.push(id+": "+e.message);console.log("Weather+ "+id+": "+e.message)}}if(!data){if(cached&&cached.data&&cached.data.hours&&cached.data.hours.length)return {...cached.data,fetchedAt:cached.saved,fromCache:true,stale:true};throw Error("No weather source available: "+errors.join("; "))}
-data.hours=enrichHours(data.hours);if(!data.days.length)data.days=aggregate(data.hours,data.offset);addSolar(place,data);try{data.alerts=await locationAlerts(place,c)}catch(e){data.alerts={selected:c.alertSource||"auto",status:"unavailable",source:null,count:null,headline:"",errors:[String(e.message||e)],version:PLUGIN_VERSION};diagnostic("alert-warning","Alert processing failed; forecast preserved",{error:String(e.message||e),provider:data.provider});}await extras(place,c,data);const fetchedAt=Date.now();localStorage.setItem(key,JSON.stringify({saved:fetchedAt,data}));localStorage.setItem(LAST_FETCH_KEY,String(fetchedAt));return {...data,fetchedAt};}
+data.hours=enrichHours(data.hours);
+if(!data.days.length){
+ try{
+   const full=await fullCalendarDayExtrema(place);
+   applyFullDayExtrema(data,full);
+ }catch(e){
+   // No provider offers earlier hours in an hourly-only forecast. Keep
+   // valid current/hourly data but do NOT publish a fake remaining-day low.
+   data.days=aggregate(data.hours,data.offset);
+   const today=Math.floor((Date.now()/1000+(data.offset||0))/D);
+   for(const d of data.days)if(Math.floor((d.time+(data.offset||0))/D)===today)
+     {d.high=null;d.low=null;}
+   data.dailyExtremaSource="unavailable";
+   diagnostic("daily-extrema-warning","Full local-day high/low unavailable",{
+     provider:data.provider,error:String(e.message||e)
+   });
+ }
+}
+if(!data.dailyExtremaSource)data.dailyExtremaSource=data.provider+" native daily";
+addSolar(place,data);try{data.alerts=await locationAlerts(place,c)}catch(e){data.alerts={selected:c.alertSource||"auto",status:"unavailable",source:null,count:null,headline:"",errors:[String(e.message||e)],version:PLUGIN_VERSION};diagnostic("alert-warning","Alert processing failed; forecast preserved",{error:String(e.message||e),provider:data.provider});}await extras(place,c,data);const fetchedAt=Date.now();localStorage.setItem(key,JSON.stringify({saved:fetchedAt,data}));localStorage.setItem(LAST_FETCH_KEY,String(fetchedAt));return {...data,fetchedAt};}
 
 /* Validation runs on provider-native SI data before unit conversion. Advisory only:
    invalid measurements are reported, never silently replaced. */
@@ -122,7 +180,7 @@ for(const [k,unit] of Object.entries(HOURLY)){const values=hourRows.map(r=>r?.[k
 for(const [k,unit] of Object.entries(DAILY)){const values=dayRows.map(r=>r?.[k]??null);{const isTime=k==="sunrise"||k==="sunset";const v=values.map(x=>isTime||unit===null?x:converted(x,k,c).value);const u=isTime||unit===null?null:converted(0,k,c).unit;props["daily_"+k]=series(v,midnight,D,u,isTime?"timestamp":unit===null?"text":"number")}}
 const extra=(obj,k)=>{const rows=obj&&obj[k]||[];const map=new Map(rows.map(x=>[Math.floor(x.time/H)*H,x.value]));return Array.from({length:168},(_,i)=>map.get(hourStart+i*H)??null)};for(const [group,keys] of [["air",["aqi","european_aqi","pm25","pm10","ozone","no2","co","dust"]],["marine",["wave_height","wave_direction","wave_period","wind_wave_height","swell_wave_height","sea_temperature"]]])for(const k of keys){if(!data[group]||!data[group][k]||!data[group][k].length)continue;const unit=group==="marine"?({wave_height:"m",wave_direction:"°",wave_period:"s",wind_wave_height:"m",swell_wave_height:"m",sea_temperature:"°C"}[k]):({aqi:"",european_aqi:"",pm25:"µg/m³",pm10:"µg/m³",ozone:"µg/m³",no2:"µg/m³",co:"µg/m³",dust:"µg/m³"}[k]);const values=extra(data[group],k);props["hourly_"+k]=series(values,hourStart,H,unit,"number");const first=values.find(x=>x!=null);if(first!=null)props[k]=numeric(first,unit);}
 for(const k of Object.keys(props))if(props[k]===null)delete props[k];return {instanceId:place.id,properties:props};}
-Pebble.registerSourceHandler(async(request,respond)=>{if(request.category!=="weather"||request.item!=="location")return respond.error("PLUGIN_UNAVAILABLE");try{Pebble.subscribeSource({category:"preferences",item:"weather_location"});const c=settings();const force=forceRefreshPending;forceRefreshPending=false;diagnostic("location","Resolving location",{locationSource:c.locationSource,locationQuery:c.locationSource==="fixed"?c.locationQuery:"GPS",provider:c.provider});const places=await locations(c);diagnostic("fetch","Location resolved; requesting forecast",{locations:places.map(p=>p.name),provider:c.provider});const results=await Promise.all(places.map(async p=>{try{const data=await forecast(p,c,force);const result=envelope(p,data,c);diagnostic("success","Forecast delivered",{validation:validateForecast(data,result.properties),location:p.name,provider:data.provider,hours:data.hours.length,days:data.days.length,properties:Object.keys(result.properties).length,fromCache:!!data.fromCache,stale:!!data.stale,coverage:fieldCoverage(result.properties)});return result}catch(e){diagnostic("forecast-error",String(e.message||e),{location:p.name,provider:c.provider});return null}}));if(!results.some(Boolean)){const d=lastDiagnostic();respond.error("UNKNOWN",d&&d.message||"No forecast instances available");return;}respond.data({validUntilMs:Date.now()+TTL,instances:results.filter(Boolean)})}catch(e){diagnostic("source-error",String(e.message||e),{provider:settings().provider});respond.error("UNKNOWN",String(e.message||e))}});
+Pebble.registerSourceHandler(async(request,respond)=>{if(request.category!=="weather"||request.item!=="location")return respond.error("PLUGIN_UNAVAILABLE");try{Pebble.subscribeSource({category:"preferences",item:"weather_location"});const c=settings();const force=forceRefreshPending;forceRefreshPending=false;diagnostic("location","Resolving location",{locationSource:c.locationSource,locationQuery:c.locationSource==="fixed"?c.locationQuery:"GPS",provider:c.provider});const places=await locations(c);diagnostic("fetch","Location resolved; requesting forecast",{locations:places.map(p=>p.name),provider:c.provider});const results=await Promise.all(places.map(async p=>{try{const data=await forecast(p,c,force);const result=envelope(p,data,c);diagnostic("success","Forecast delivered",{validation:validateForecast(data,result.properties),location:p.name,provider:data.provider,dailyExtremaSource:data.dailyExtremaSource||null,hours:data.hours.length,days:data.days.length,properties:Object.keys(result.properties).length,fromCache:!!data.fromCache,stale:!!data.stale,coverage:fieldCoverage(result.properties)});return result}catch(e){diagnostic("forecast-error",String(e.message||e),{location:p.name,provider:c.provider});return null}}));if(!results.some(Boolean)){const d=lastDiagnostic();respond.error("UNKNOWN",d&&d.message||"No forecast instances available");return;}respond.data({validUntilMs:Date.now()+TTL,instances:results.filter(Boolean)})}catch(e){diagnostic("source-error",String(e.message||e),{provider:settings().provider});respond.error("UNKNOWN",String(e.message||e))}});
 
 const WORLD_TEST_LOCATIONS=[
 {name:"Columbia, Maryland, US",lat:39.2037,lon:-76.8610,countryCode:"us"},
