@@ -2,7 +2,7 @@ name: Build Weather+ PBW
 
 on:
   push:
-    branches: [main]
+    branches: [main, fix/full-calendar-day-extrema]
   workflow_dispatch:
 
 permissions:
@@ -29,6 +29,7 @@ jobs:
       - name: Check plugin and settings JavaScript syntax
         run: |
           node --check src/plugin/index.js
+          node tests/full-day-low.test.js
           python3 - <<'PY'
           from pathlib import Path
           page=Path("src/config.html").read_text()
