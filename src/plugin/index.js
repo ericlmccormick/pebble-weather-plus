@@ -178,6 +178,7 @@ function validateForecast(data,properties){
 // weather and subsequent forecast days continue updating normally.
 const DAILY_EXTREMA_HOLD_KEY="weatherplus.dailyExtremaHold.v1";
 const DAILY_EXTREMA_MOVE_KM=40;
+const DAILY_EXTREMA_MORNING_HOUR=6;
 function dayHoldDistanceKm(a,b,lat,lon){
  const rad=Math.PI/180;
  const dlat=(lat-a)*rad,dlon=(lon-b)*rad;
@@ -187,7 +188,9 @@ function dayHoldDistanceKm(a,b,lat,lon){
 }
 function holdTodayExtrema(place,data){
  const offset=Number(data.offset)||0;
- const todayKey=Math.floor((Date.now()/1000+offset)/D);
+ const localSeconds=Date.now()/1000+offset;
+ const todayKey=Math.floor(localSeconds/D);
+ const localHour=(localSeconds-todayKey*D)/H;
  const row=(data.days||[]).find(d=>
    d&&Number.isFinite(d.time)&&Math.floor((d.time+offset)/D)===todayKey);
  if(!row || !Number.isFinite(place.lat)||!Number.isFinite(place.lon))
@@ -201,6 +204,8 @@ function holdTodayExtrema(place,data){
    dayHoldDistanceKm(saved.lat,saved.lon,place.lat,place.lon)<DAILY_EXTREMA_MOVE_KM;
  let baseline=matches?saved:null;
  if(!baseline){
+   // Do not anchor on a midnight forecast before morning weather checks.
+   if(localHour<DAILY_EXTREMA_MORNING_HOUR)return data;
    if(!Number.isFinite(row.high)||!Number.isFinite(row.low)||
       row.high<row.low||row.high>75||row.low< -120)
      return data; // Never lock incomplete or forecast-hours-only extrema.
