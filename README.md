@@ -4,6 +4,15 @@
 
 ## Daily high/low semantics (full local calendar day)
 
+**Morning baseline:** Today’s `high`/`low` and `daily_high[0]`/
+`daily_low[0]` now use the first valid full-day forecast received for that
+location and date. The pair is stored across app/plugin restarts and held during
+normal updates. It resets after **40 km (about 25 miles) of travel**, or at the
+next **local midnight**. Current temperature, conditions, hourly series and
+tomorrow onward remain dynamic. This is a *stable forecast baseline*, not an
+observed high/low; major forecast revisions at the same location are
+intentionally suppressed for today's display.
+
 The `daily_high` and `daily_low` values represent forecast extrema for
 **midnight-to-midnight in the forecast location's timezone**, not just the hours
 remaining in the day. Open-Meteo and OpenWeather have native daily extrema.
