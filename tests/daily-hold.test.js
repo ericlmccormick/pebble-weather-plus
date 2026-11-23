@@ -21,6 +21,11 @@ const place={lat:21.4,lon:-157.8};
 const row=(day,high,low)=>({time:day*D-offset,high,low});
 const data=(high,low)=>({offset,
  days:[row(localDay,high,low),row(localDay+1,26,17)]});
+now=(localDay*D-offset)+4*3600;
+let early=first(place,data(27,16));
+assert.equal(early.days[0].low,16,'Forecast can update normally before 6am');
+assert.equal(cache.size,0,'A pre-dawn check must not pin tomorrow morning values');
+now=(localDay*D-offset)+7*3600;
 let reading=first(place,data(29,19));
 assert.equal(reading.days[0].low,19);
 assert.equal(reading.days[0].high,29);
