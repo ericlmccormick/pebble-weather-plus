@@ -2,6 +2,32 @@
 
 **Current source version: 1.1.0** (`package.json`). Weather+ is a phone-side plugin offering normalized weather data to Pebble apps such as [Timeline WX](https://github.com/ericlmccormick/Pebble-Timeline-WX).
 
+## Daily high/low semantics (full local calendar day)
+
+**Morning baseline:** Today’s `high`/`low` and `daily_high[0]`/
+`daily_low[0]` now use the first valid full-day forecast received **at or after
+6:00 AM at the forecast location** on that date. The pair is stored across app/plugin restarts and held during
+normal updates. It resets after **40 km (about 25 miles) of travel**, or at the
+next **local midnight**. Current temperature, conditions, hourly series and
+tomorrow onward remain dynamic. This is a *stable forecast baseline*, not an
+observed high/low; major forecast revisions at the same location are
+intentionally suppressed for today's display.
+
+The `daily_high` and `daily_low` values represent forecast extrema for
+**midnight-to-midnight in the forecast location's timezone**, not just the hours
+remaining in the day. Open-Meteo and OpenWeather have native daily extrema.
+When NWS or MET Norway supplies hourly-only forecasts that omit earlier hours,
+Weather+ supplements the temperature extrema from Open-Meteo's native daily
+forecast while retaining hourly temperatures and conditions from the selected
+provider. This blending is identified in diagnostic data as
+`dailyExtremaSource`.
+
+If the full-day daily source cannot be reached or its calendar dates do not
+align, Weather+ leaves today's high/low unavailable rather than inventing a
+remaining-hours minimum. A forecast's full-day low can still legitimately
+change when the underlying forecasting model issues a revised prediction; this
+fix prevents the systematic rise caused merely by previous hours disappearing.
+
 ## What it provides
 
 Weather+ supports configurable weather sources and location, a **216-hour / nine-day** forecast when provider data is available, optional air-quality and marine fields, local alerts, source diagnostics and a 15-minute cache. Available provider choices in the current code are Automatic, Open-Meteo, MET Norway, NWS and OpenWeather. Availability and completeness depend on country, requested field, and upstream service.

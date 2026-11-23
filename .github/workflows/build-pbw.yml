@@ -2,6 +2,8 @@ name: Build Weather+ PBW
 
 on:
   push:
+    branches: [main, fix/full-calendar-day-extrema]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
@@ -29,6 +31,8 @@ jobs:
       - name: Check plugin and settings JavaScript syntax
         run: |
           node --check src/plugin/index.js
+          node tests/full-day-low.test.js
+          node tests/daily-hold.test.js
           python3 - <<'PY'
           from pathlib import Path
           page=Path("src/config.html").read_text()
@@ -62,6 +66,7 @@ jobs:
           path: build/pebble-weather-plus.pbw
           if-no-files-found: error
       - name: Publish standalone PBW on rolling development release
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
